@@ -7,6 +7,10 @@ public class Main {
         //0 is empty
         //1 is grass
         //2 is tent
+        //TODO Investigate blank space at end of file save for columns/rows
+        //TODO Wrap file creation/load functions perhaps?
+        //TODO CLEAN spaced prints
+
         Board gameBoard;
 
         Scanner input = new Scanner(System.in);
@@ -31,74 +35,115 @@ public class Main {
                 break;
 
             default:
-                gameBoard = new Board(new int[0][0], new int[0], new int[0]);
+                gameBoard = new Board(new Tile[0][0], new int[0], new int[0]);
                 break;
         }
-        displayBoard(gameBoard);
+        textDisplay(gameBoard);
+
+        // Rudimentary game loop
         while(!BoardManager.checkWin(gameBoard)) {
             choice = input.nextInt();
             choice2 = input.nextInt();
             gameBoard.cycleTile(choice, choice2);
-            displayBoard(gameBoard);
-            System.out.println(BoardManager.checkWin(gameBoard));
+            textDisplay(gameBoard);
         }
         System.out.println("You win!");
+
+        //END OF MAIN
     }
+    
+    public static void textDisplay(Board board){
+        int[] columnCounts = board.getColumnArray();
+        int[] rowCounts = board.getRowArray();
+        int maxColWidth = getLongestWidth(columnCounts);
+        int maxRowWidth = getLongestWidth(rowCounts);
+        int widest = Math.max(maxColWidth, maxRowWidth);
 
-
-    //Text-based display, WIP
-    public static void displayBoard(Board board) {
-
-        String spacing = getBoardSpacing(board);
-
-        System.out.print(" " + spacing);
-        for (int i = 0; i < board.getBoardSize(); i++) {
-            System.out.print(board.getColumnIndex(i));
-            System.out.print(spacing);
+        // Move enough to the right to make space for the row counts
+        for (int i = 0; i < widest; i++) {
+            System.out.print(" ");
         }
-        System.out.println();
-        for (int i = 0; i < board.getBoardSize(); i++) {
-            System.out.print(board.getRowIndex(i));
-            System.out.print(spacing);
-            for (int j = 0; j < board.getBoardSize(); j++) {
-                switch (board.getTile(i, j)){
-                    case -1:
-                        System.out.print("T");
-                        break;
-                    case 0:
-                        System.out.print("E");
-                        break;
-                    case 1:
-                        System.out.print("G");
-                        break;
-                    case 2:
-                        System.out.print("A");
-                        break;
-                    default:
-                        System.out.print(board.getTile(i, j));
+        // One more to bridge the empty space
+        System.out.print(" ");
+
+        // Top row
+        for (int i = 0; i < columnCounts.length; i++) {
+            if(widest == 1){
+                System.out.print(columnCounts[i]);
+                if(i != columnCounts.length - 1){
+                    System.out.print(" ");
                 }
-                System.out.print(spacing);
             }
+            else{
+                int currentItemWidth = String.valueOf(columnCounts[i]).length();
+                int diff = widest - currentItemWidth;
+                System.out.print(columnCounts[i]);
+                for (int j = 0; j <= diff; j++) {
+                    System.out.print(" ");
+                }
+            }
+        }
+        // Down a line
+        System.out.println();
+
+        // For the board
+        for (int i = 0; i < board.getBoardSize(); i++) {
+
+            // Print leftmost row counter
+            if(widest == 1) {
+                System.out.print(rowCounts[i]);
+                System.out.print(" ");
+            }
+            else{
+                int currentItemWidth = String.valueOf(rowCounts[i]).length();
+                System.out.print(rowCounts[i]);
+                int diff = widest - currentItemWidth;
+                for (int j = 0; j <= diff; j++) {
+                    System.out.print(" ");
+                }
+            }
+            // Print tile itself
+            for (int j = 0; j < board.getBoardSize(); j++) {
+                System.out.print(printCharConversion(board.getTile(i, j)));
+                int charWidth = 1;
+                int diff = widest - charWidth;
+                if(j != board.getBoardSize() -1 ){
+                    System.out.print(" ");
+                    for (int k = 0; k < diff; k++) {
+                        System.out.print(" ");
+                    }
+                }
+            }
+            // Go down for next line
             System.out.println();
         }
+        
     }
 
-    private static String getBoardSpacing(Board gameBoard){
-        int maxSoFar = 0;
-        for (int i = 0; i < gameBoard.getBoardSize(); i++){
-            String length = String.valueOf(gameBoard.getRowIndex(i));
-            if (length.length() > maxSoFar){
-                maxSoFar = length.length();
+    private static int getLongestWidth(int[] inputArray){
+        int longest = 0;
+        for (int value : inputArray) {
+            if (String.valueOf(value).length() > longest) {
+                longest = String.valueOf(value).length();
             }
         }
-
-        String spaces = "";
-        for (int i = 0; i < maxSoFar; i++) {
-            spaces += " ";
-        }
-        return spaces;
+        return longest;
     }
 
+    private static char printCharConversion(Tile input){
+        switch (input){
+            case TREE:
+                return 'T';
+            case EMPTY:
+                return 'E';
+            case GRASS:
+                return 'G';
+            case TENT:
+                return 'A';
+            default:
+                throw new IllegalArgumentException("Illegal Tile to display char conversion!");
+        }
+    }
 
     private static Board loadBoard(int selection) {
         switch (selection) {

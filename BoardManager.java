@@ -1,6 +1,11 @@
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.Scanner;
 
 public class BoardManager {
 
@@ -11,7 +16,12 @@ public class BoardManager {
 
 
     static Board generateBoard(int size) {
-        int[][] newBoard = new int[size][size];
+        Tile[][] newBoard = new Tile[size][size];
+
+        //Fill the board with empty tiles before we start working on it
+        for (Tile[] row: newBoard){
+            Arrays.fill(row, Tile.EMPTY);
+        }
         int[] newColumnCounts = new int[size];
         int[] newRowCounts = new int[size];
 
@@ -22,20 +32,22 @@ public class BoardManager {
         Random myRand = new Random();
         CoordinatePair tempTree;
 
-        for (int i = 0; i < ((size * size)/4); i++) {
+        int attemptCount = (size * size)/ 4;
+
+        for (int i = 0; i < attemptCount; i++) {
 
             //Pick a random spot on the board
             tempTree = new CoordinatePair(myRand.nextInt(size), myRand.nextInt(size));
 
             //If it's an empty spot we can move forward
-            if (newBoard[tempTree.getX()][tempTree.getY()] == 0) {
+            if (newBoard[tempTree.getX()][tempTree.getY()] == Tile.EMPTY) {
                 //Return a random valid neighbor, if possible
                 CoordinatePair tempTent = getRandomValidTentAdjacent(new Board(newBoard, null, null), tempTree);
 
                 //If a valid neighbor is found, place the tree and the tent on the board
                 if (tempTent != null) {
-                    newBoard[tempTree.getX()][tempTree.getY()] = -1;
-                    newBoard[tempTent.getX()][tempTent.getY()] = 2;
+                    newBoard[tempTree.getX()][tempTree.getY()] = Tile.TREE;
+                    newBoard[tempTent.getX()][tempTent.getY()] = Tile.TENT;
                 }
             }
         }
@@ -52,7 +64,7 @@ public class BoardManager {
 
             //Find a tent, count it
             for (int c = 0; c < size; c++) {
-                if (newBoard[r][c] == 2) {
+                if (newBoard[r][c] == Tile.TENT) {
                     tempRowCount++;
                 }
             }
@@ -67,9 +79,9 @@ public class BoardManager {
 
             //Find a tent, count it, and remove it from the board
             for (int r = 0; r < size; r++) {
-                if (newBoard[r][c] == 2) {
+                if (newBoard[r][c] == Tile.TENT) {
                     tempColumnCount++;
-                    newBoard[r][c] = 0;
+                    newBoard[r][c] = Tile.EMPTY;
                 }
             }
             newColumnCounts[c] = tempColumnCount;
@@ -82,27 +94,27 @@ public class BoardManager {
     //There are no empty tiles
     //Each tree has a unique tent
     //No tent is near another tent
-    //Each row and column has the right number of tents
+    //Each row and column has the correct number of tents
     static boolean checkWin(Board gameBoard) {
-        int tempCount = 0;
+        int tempCount;
         int size = gameBoard.getBoardSize();
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 CoordinatePair location = new CoordinatePair(i, j);
-                int locationValue = gameBoard.getTile(location);
+                Tile locationValue = gameBoard.getTile(location);
 
                 //If there are empty tiles, then we are not in a solution state yet
-                if (locationValue == 0) {
+                if (locationValue == Tile.EMPTY) {
                     return false;
                 }
                 //If there is a tent nearby another tent, then we are not in a solution new CoordinatePair(i, j)
                 // state yet
-                if (locationValue == 2 && hasNeighborOfType(gameBoard, location, 2)) {
+                if (locationValue == Tile.TENT && hasNeighborOfType(gameBoard, location, Tile.TENT)) {
                     return false;
                 }
                 //If there is no tent near a tree, then we are not in a solution state yet
-                if (locationValue == -1 && !hasAdjacentOfType(gameBoard, location, 2)) {
+                if (locationValue == Tile.TREE && !hasAdjacentOfType(gameBoard, location, Tile.TENT)) {
                     return false;
                 }
             }
@@ -112,7 +124,7 @@ public class BoardManager {
         for (int i = 0; i < size; i++) {
             tempCount = 0;
             for (int j = 0; j < size; j++) {
-                if (gameBoard.getTile(i, j) == 2) {
+                if (gameBoard.getTile(i, j) == Tile.TENT) {
                     tempCount++;
                 }
             }
@@ -126,7 +138,7 @@ public class BoardManager {
             tempCount = 0;
             for (int j = 0; j < size; j++) {
 
-                if (gameBoard.getTile(j, i) == 2) {
+                if (gameBoard.getTile(j, i) == Tile.TENT) {
                     tempCount++;
                 }
             }
@@ -143,8 +155,112 @@ public class BoardManager {
         //We do not know for certain that each tree has a unique tent, but
         //testing may uncover false positives
 
-        //If all above tests are valid then the board is complete
         return true;
+    }
+
+    //TODO: Print on more lines so the file doesn't have extremely long lines
+    static boolean saveBoardToFile(Tile[][] board, int[] columnCounts, int[] rowCounts) throws FileNotFoundException {
+        String fileName = "boardOutput";
+        String fileExtension = ".txt";
+        int fileIndex = 0;
+        File outputFile = new File(fileName + fileIndex + fileExtension);
+
+        // If the file with that name already exists, increment the number
+        while (outputFile.exists()){
+            fileIndex++;
+            outputFile = new File(fileName + fileIndex + fileExtension);
+        }
+
+        PrintWriter outputWriter = new PrintWriter(outputFile);
+        for (int c: columnCounts) {
+            outputWriter.print(c);
+            outputWriter.print(" ");
+        }
+        outputWriter.println();
+        for (int r: rowCounts) {
+            outputWriter.print(r);
+            outputWriter.print(" ");
+        }
+        outputWriter.println();
+
+        for (int i = 0; i < board.length; i++) {
+            for (int j = 0; j < board[0].length; j++) {
+                outputWriter.print(tileToInt(board[i][j]));
+                if(j != board[i].length - 1) {
+                    outputWriter.print(" ");
+                }
+            }
+            if(i != board.length - 1) {
+                outputWriter.print(",");
+            }
+        }
+        outputWriter.close();
+        return true;
+    }
+
+    static Board readBoardFromFile (String filePath) throws FileNotFoundException {
+        File inputFile = new File(filePath);
+        if(!inputFile.exists()){
+            System.out.println("File does not exist.");
+            throw new FileNotFoundException();
+        }
+        int[] columnCounts, rowCounts;
+        Scanner input = new Scanner(inputFile);
+
+        columnCounts = Arrays.stream(input.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
+        rowCounts = Arrays.stream(input.nextLine().split(" ")).mapToInt(Integer::parseInt).toArray();
+        String[] boardRows = input.nextLine().split(",");
+        int[][] board = new int[boardRows.length][boardRows[0].length() / 2];
+        for (int i = 0; i < boardRows.length; i++) {
+            board[i] = Arrays.stream(boardRows[i].split(" ")).mapToInt(Integer::parseInt).toArray();
+        }
+        return new Board(board, columnCounts, rowCounts);
+    }
+
+    /**
+     * Converts a Tile to an int.
+     * Mapping is as follows:
+     * TREE = -1
+     * EMPTY = 0
+     * GRASS = 1
+     * TENT = 2
+     */
+    static int tileToInt(Tile input){
+        switch (input){
+            case TREE:
+                return -1;
+            case EMPTY:
+                return 0;
+            case GRASS:
+                return 1;
+            case TENT:
+                return 2;
+            default:
+                throw new IllegalArgumentException("Illegal Tile to int conversion.");
+        }
+    }
+
+    /**
+     * Converts an int to a Tile.
+     * Mapping is as follows:
+     * -1 = TREE
+     * 0 = EMPTY
+     * 1 = GRASS
+     * 2 = TENT
+     */
+    static Tile intToTile(int input){
+        switch (input){
+            case -1:
+                return Tile.TREE;
+            case 0:
+                return Tile.EMPTY;
+            case 1:
+                return Tile.GRASS;
+            case 2:
+                return Tile.TENT;
+            default:
+                throw new IllegalArgumentException("Illegal int to Tile conversion!");
+        }
     }
 
     /**
@@ -156,7 +272,7 @@ public class BoardManager {
         List<CoordinatePair> validTentPlacements = new ArrayList<>();
 
         //Get all existing adjacent tiles that are empty
-        List<CoordinatePair> adjacent = filterCoordinates(gameBoard, getAdjacent(gameBoard, location), 0);
+        List<CoordinatePair> adjacent = filterCoordinates(gameBoard, getAdjacent(gameBoard, location), Tile.EMPTY);
 
         if (adjacent.size() == 0) {
             return null;
@@ -164,7 +280,7 @@ public class BoardManager {
 
         //If the given coordinate doesn't have a tent neighboring it, then it's a valid location
         for (CoordinatePair c: adjacent) {
-            if (!hasNeighborOfType(gameBoard, c, 2)){
+            if (!hasNeighborOfType(gameBoard, c, Tile.TENT)){
                 validTentPlacements.add(c);
             }
         }
@@ -179,15 +295,16 @@ public class BoardManager {
     /**
      * Returns true if there is at least one neighboring location of the given type
      */
-    private static boolean hasNeighborOfType(Board gameBoard, CoordinatePair location, int type) {
+    private static boolean hasNeighborOfType(Board gameBoard, CoordinatePair location, Tile type) {
         return (filterCoordinates(gameBoard, getNeighbors(gameBoard, location), type).size() != 0);
     }
+
     /**
      * Returns true if there is at least one adjacent location of the given type
      * @param type -1 for tree, 0 for empty, 1 for grass, 2 for tent
      * @return True if at least one adjacent location of the given type, false otherwise
      */
-    private static boolean hasAdjacentOfType(Board gameBoard, CoordinatePair location, int type) {
+    private static boolean hasAdjacentOfType(Board gameBoard, CoordinatePair location, Tile type) {
         return (filterCoordinates(gameBoard, getAdjacent(gameBoard, location), type).size() != 0);
     }
 
@@ -250,7 +367,7 @@ public class BoardManager {
      * @param type -1 for tree, 0 for empty, 1 for grass, 2 for tent
      * @return true if within bounds AND of given type, false if out of bounds OR not of given type
      */
-    private static boolean validLocation(Board gameBoard, CoordinatePair location, int type){
+    private static boolean validLocation(Board gameBoard, CoordinatePair location, Tile type){
         int x = location.getX();
         int y = location.getY();
         return (validLocation(gameBoard, location) && gameBoard.getTile(x, y) == type);
@@ -268,8 +385,10 @@ public class BoardManager {
      * Returns a list of locations that have had all locations that are not #type removed, may be empty.
      * @param type -1 for tree, 0 for empty, 1 for grass, 2 for tent
      */
-    private static List<CoordinatePair> filterCoordinates(Board gameBoard, List<CoordinatePair> list, int type){
+    private static List<CoordinatePair> filterCoordinates(Board gameBoard, List<CoordinatePair> list, Tile type){
         list.removeIf(c -> gameBoard.getTile(c.getX(), c.getY()) != type);
         return list;
     }
+
+
 }
